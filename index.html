@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="shortcut icon" href="./favicon.ico" type="image/x-icon">
+    <link rel="stylesheet" href="./style.css">
+    <title>TeraBox Direct Link Generator</title>
+</head>
+
+<body>
+    <div class="container">
+        <h1>GET LINK TERABOX</h1>
+        <div class="form-group">
+            <label for="input-url">Enter URL:</label>
+            <input type="text" id="input-url" placeholder="https://terabox.com/s/117NfiRSK_e4ImEEDqQGh_g">
+            <input type="text" id="input-password" placeholder="Password (Optional)">
+        </div>
+        <div class="form-group">
+            <button id="get-link-button">Get Link</button>
+        </div>
+        <div class="output" style="display: none;">
+            <div class="tree-view"></div>
+        </div>
+        <!-- Add the video container here -->
+        <div id="video-container" style="display: none;">
+            <h2>Video Player</h2>
+            <video id="player" controls></video>
+        </div>
+    </div>
+
+    <script src="./script.js"></script>
+    <script>
+        const API_PROXY = "http://localhost:5000/proxy";  // Proxy backend URL
+
+        function fetchDownload({ shareid, uk, sign, timestamp, fs_id }) {
+            return fetch(`${API_PROXY}?url=/api/get-download`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ shareid, uk, sign, timestamp, fs_id }),
+            }).then(res => res.json());
+        }
+
+        function fetchDownloadP({ shareid, uk, sign, timestamp, fs_id }) {
+            return fetch(`${API_PROXY}?url=/api/get-downloadp`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ shareid, uk, sign, timestamp, fs_id }),
+            }).then(res => res.json());
+        }
+
+        function fetchInfo(shortUrl, pwd = '') {
+            return fetch(`${API_PROXY}?url=/api/get-info&shorturl=${shortUrl}&pwd=${pwd}`)
+                .then(res => res.json())
+                .then(body => {
+                    if (!body.ok) return alert(body.message);
+
+                    function recursiveList(list) {
+                        return list.map(item => ({
+                            isDir: item.is_dir != 0,
+                            name: item.filename,
+                            category: item.is_dir != 0 || parseInt(item.category),
+                            size: item.is_dir != 0 || formatStorageSize(parseInt(item.size)),
+                            children: item.children?.length > 0 ? recursiveList(item.children) : undefined,
+                            downloadAction: item.is_dir != 0 || async function() {
+                                const res = await fetchDownload({
+                                    shareid: body.shareid,
+                                    uk: body.uk,
+                                    sign: body.sign,
+                                    timestamp: body.timestamp,
+                                    fs_id: item.fs_id,
+                                });
+
+                                if (!res.ok) return alert(res.message);
+                                return res.downloadLink;
+                            },
+                            downloadActionP: item.is_dir != 0 || async function() {
+                                const res = await fetchDownloadP({
+                                    shareid: body.shareid,
+                                    uk: body.uk,
+                                    sign: body.sign,
+                                    timestamp: body.timestamp,
+                                    fs_id: item.fs_id,
+                                });
+                                if (!res.ok) return alert(res.message);
+                                return res.downloadLink;
+                            },
+                        }));
+                    }
+
+                    return recursiveList(body.list);
+                });
+        }
+
+        const getLinkButton = document.getElementById("get-link-button");
+        const inputUrl = document.getElementById("input-url");
+        const inputPassword = document.getElementById("input-password");
+        const outputElement = document.querySelector(".output");
+        const treeViewElement = document.querySelector(".tree-view");
+
+        const placeholders = [
+            'https://terabox.com/s/117NfiRSK_e4ImEEDqQGh_g',
+            'https://www.terabox.com/sharing/link?surl=17NfiRSK_e4ImEEDqQGh_g',
+            'Enter your TeraBox URL Here'
+        ];
+        let ips = 0;
+        setInterval(() => {
+            inputUrl.setAttribute('placeholder', placeholders[ips]);
+            ips = (ips + 1) % placeholders.length;
+        }, 2000);
+
+        getLinkButton.addEventListener("click", async function () {
+            const url = inputUrl.value;
+            const pwd = inputPassword.value;
+
+            if (!url) return alert('URL must not be empty!');
+
+            const regex = /(?:surl=|\/)([a-zA-Z0-9-_]+)$/;
+            const match = url.match(regex);
+            if (match) {
+                const shortUrl = match[1];
+
+                treeViewElement.innerHTML = '<p style="text-align:center;"><i class="fa-solid fa-circle-notch fa-spin"></i> Loading...</p>';
+                getLinkButton.disabled = true;
+                outputElement.style.display = 'block';
+
+                const d = await fetchInfo(shortUrl, pwd);
+
+                getLinkButton.disabled = false;
+                treeViewElement.innerHTML = '';
+
+                TreeView(d, treeViewElement);
+
+                // Reset the video player
+                const videoContainer = document.getElementById('video-container');
+                const player = document.getElementById('player');
+                player.pause();
+                player.currentTime = 0;
+                player.src = '';
+                videoContainer.style.display = 'none';
+            } else {
+                alert("Unsupported URL");
+                getLinkButton.disabled = false;
+            }
+        });
+    </script>
+</body>
+
+</html>

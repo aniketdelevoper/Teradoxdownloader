@@ -1,0 +1,7 @@
+pip install flask flask-cors requests
+python server.py
+python -m http.server 9000
+http://localhost:9000/index.html
+example link
+https://1024terabox.com/s/14sOBx2Bp_-gN5rdGdXwJ5Q
+https://teraboxapp.com/s/1l1VtloAx4CbP1AgeUuPehQ
