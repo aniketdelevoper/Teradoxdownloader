@@ -33,8 +33,7 @@
 
     <script src="./script.js"></script>
     <script>
-        const API_PROXY = "https://terdox-backend.onrender.com/proxy?
-";  // Proxy backend URL
+        const API_PROXY = "https://terdox-backend.onrender.com/proxy";  // Proxy backend URL
 
         function fetchDownload({ shareid, uk, sign, timestamp, fs_id }) {
             return fetch(`${API_PROXY}?url=/api/get-download`, {
